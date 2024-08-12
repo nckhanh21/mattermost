@@ -68,8 +68,8 @@ const RightControls = ({productId = null}: Props): JSX.Element => {
             <PlanUpgradeButton/>
             {isChannels(productId) ? (
                 <>
-                    <AtMentionsButton/>
-                    <SavedPostsButton/>
+                    {/* <AtMentionsButton/>
+                    <SavedPostsButton/> */}
                 </>
             ) : (
                 <Pluggable
@@ -83,7 +83,7 @@ const RightControls = ({productId = null}: Props): JSX.Element => {
                     isChannels(productId) ? (
                         <>
                             <SettingsButton/>
-                            {showCustomizeTip && <CustomizeYourExperienceTour/>}
+                            {/* {showCustomizeTip && <CustomizeYourExperienceTour/>} */}
                         </>
                     ) : null
                 }

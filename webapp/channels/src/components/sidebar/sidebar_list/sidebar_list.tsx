@@ -504,7 +504,7 @@ export default class SidebarList extends React.PureComponent<Props, State> {
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
                                     >
-                                        {renderedCategories}
+                                        {/* {renderedCategories} */}
                                         {provided.placeholder}
                                     </div>
                                 );
@@ -535,7 +535,7 @@ export default class SidebarList extends React.PureComponent<Props, State> {
 
             // NOTE: id attribute added to temporarily support the desktop app's at-mention DOM scraping of the old sidebar
             <>
-                <GlobalThreadsLink/>
+                {/* <GlobalThreadsLink/> */}
                 <DraftsLink/>
                 <div
                     id='sidebar-left'

@@ -183,7 +183,7 @@ export class MainMenu extends React.PureComponent<Props> {
                 id={this.props.id}
                 ariaLabel={formatMessage({id: 'navbar_dropdown.menuAriaLabel', defaultMessage: 'main menu'})}
             >
-                <Menu.Group>
+                {/* <Menu.Group>
                     <SystemPermissionGate
                         permissions={[Permissions.SYSCONSOLE_WRITE_BILLING]}
                     >
@@ -200,8 +200,8 @@ export class MainMenu extends React.PureComponent<Props> {
                             id='startTrial'
                         />
                     </SystemPermissionGate>
-                </Menu.Group>
-                <Menu.Group>
+                </Menu.Group> */}
+                {/* <Menu.Group>
                     <Menu.ItemAction
                         id='recentMentions'
                         onClick={this.searchMentions}
@@ -214,7 +214,7 @@ export class MainMenu extends React.PureComponent<Props> {
                         icon={<i className='fa fa-bookmark'/>}
                         text={formatMessage({id: 'sidebar_right_menu.flagged', defaultMessage: 'Saved messages'})}
                     />
-                </Menu.Group>
+                </Menu.Group> */}
                 <Menu.Group>
                     <Menu.ItemToggleModalRedux
                         id='profileSettings'
@@ -233,7 +233,7 @@ export class MainMenu extends React.PureComponent<Props> {
                         icon={<i className='fa fa-cog'/>}
                     />
                 </Menu.Group>
-                <Menu.Group>
+                {/* <Menu.Group>
                     <TeamPermissionGate
                         teamId={teamId}
                         permissions={[Permissions.MANAGE_TEAM]}
@@ -253,8 +253,8 @@ export class MainMenu extends React.PureComponent<Props> {
                     >
                         {invitePeopleModal}
                     </TeamPermissionGate>
-                </Menu.Group>
-                <Menu.Group>
+                </Menu.Group> */}
+                {/* <Menu.Group>
                     <TeamPermissionGate
                         teamId={teamId}
                         permissions={[Permissions.MANAGE_TEAM]}
@@ -334,8 +334,8 @@ export class MainMenu extends React.PureComponent<Props> {
                         text={formatMessage({id: 'navbar_dropdown.leave', defaultMessage: 'Leave Team'})}
                         icon={<LeaveTeamIcon/>}
                     />
-                </Menu.Group>
-                <Menu.Group>
+                </Menu.Group> */}
+                {/* <Menu.Group>
                     {pluginItems}
                 </Menu.Group>
                 <Menu.Group>
@@ -375,7 +375,7 @@ export class MainMenu extends React.PureComponent<Props> {
                         text={formatMessage({id: 'navbar_dropdown.about', defaultMessage: 'About {appTitle}'}, {appTitle: this.props.siteName || 'Mattermost'})}
                         icon={<i className='fa fa-info'/>}
                     />
-                </Menu.Group>
+                </Menu.Group> */}
                 <Menu.Group>
                     <Menu.ItemAction
                         id='logout'
@@ -390,7 +390,7 @@ export class MainMenu extends React.PureComponent<Props> {
                 id={this.props.id}
                 ariaLabel={formatMessage({id: 'sidebar.team_menu.menuAriaLabel', defaultMessage: 'team menu'})}
             >
-                <Menu.Group>
+                {/* <Menu.Group>
                     <TeamPermissionGate
                         teamId={teamId}
                         permissions={[Permissions.MANAGE_TEAM]}
@@ -525,7 +525,7 @@ export class MainMenu extends React.PureComponent<Props> {
                             <LearnAboutTeamsLink/>
                         </div>
                     </Menu.Group>
-                </Menu.Group>
+                </Menu.Group> */}
                 <Menu.Group>
                     {pluginItems}
                 </Menu.Group>

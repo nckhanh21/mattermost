@@ -399,8 +399,8 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
                                     );
                                 }}
                             </Droppable>
-                            {inviteMembersButton}
-                            {addChannelsCtaButton}
+                            {/* {inviteMembersButton} */}
+                            {/* {addChannelsCtaButton} */}
                         </div>
                     );
                 }}

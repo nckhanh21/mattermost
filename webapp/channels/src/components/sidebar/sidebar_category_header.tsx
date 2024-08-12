@@ -48,34 +48,34 @@ export const SidebarCategoryHeader = React.forwardRef((props: Props, ref?: React
         Reflect.deleteProperty(dragHandleProps, 'role');
     }
 
-    return (
-        <div
-            className={classNames('SidebarChannelGroupHeader', {
-                muted: props.muted,
-                dragging: props.isDragging,
-            })}
-        >
-            <button
-                ref={ref}
-                className={classNames('SidebarChannelGroupHeader_groupButton')}
-                aria-label={props.displayName}
-                onClick={props.onClick}
-            >
-                <i
-                    className={classNames('icon icon-chevron-down', {
-                        'icon-rotate-minus-90': props.isCollapsed,
-                        'hide-arrow': !props.isCollapsible,
-                    })}
-                />
-                <div
-                    className='SidebarChannelGroupHeader_text'
-                    {...dragHandleProps}
-                >
-                    {wrapEmojis(props.displayName)}
-                </div>
-            </button>
-            {props.children}
-        </div>
+    return ( <div></div>
+        // <div
+        //     className={classNames('SidebarChannelGroupHeader', {
+        //         muted: props.muted,
+        //         dragging: props.isDragging,
+        //     })}
+        // >
+        //     <button
+        //         ref={ref}
+        //         className={classNames('SidebarChannelGroupHeader_groupButton')}
+        //         aria-label={props.displayName}
+        //         onClick={props.onClick}
+        //     >
+        //         <i
+        //             className={classNames('icon icon-chevron-down', {
+        //                 'icon-rotate-minus-90': props.isCollapsed,
+        //                 'hide-arrow': !props.isCollapsible,
+        //             })}
+        //         />
+        //         <div
+        //             className='SidebarChannelGroupHeader_text'
+        //             {...dragHandleProps}
+        //         >
+        //             {wrapEmojis(props.displayName)}
+        //         </div>
+        //     </button>
+        //     {props.children}
+        // </div>
     );
 });
 SidebarCategoryHeader.defaultProps = {

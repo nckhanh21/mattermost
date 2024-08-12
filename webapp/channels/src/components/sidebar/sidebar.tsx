@@ -257,7 +257,7 @@ export default class Sidebar extends React.PureComponent<Props, State> {
                     className='a11y__region'
                     data-a11y-sort-order='6'
                 >
-                    <ChannelNavigator/>
+                    {/* <ChannelNavigator/> */}
                 </div>
                 <div className='sidebar--left__icons'>
                     <Pluggable pluggableName='LeftSidebarHeader'/>

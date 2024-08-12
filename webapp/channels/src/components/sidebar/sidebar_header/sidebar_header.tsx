@@ -148,7 +148,7 @@ const SidebarHeader = (props: Props) => {
                         />
                     </MenuWrapper>
                 </OverlayTrigger>
-                <AddChannelDropdown
+                {/* <AddChannelDropdown
                     showNewChannelModal={props.showNewChannelModal}
                     showMoreChannelsModal={props.showMoreChannelsModal}
                     invitePeopleModal={props.invitePeopleModal}
@@ -164,7 +164,7 @@ const SidebarHeader = (props: Props) => {
                     canCreateCustomGroups={props.canCreateCustomGroups}
                     showCreateUserGroupModal={props.showCreateUserGroupModal}
                     userGroupsEnabled={props.userGroupsEnabled}
-                />
+                /> */}
             </SidebarHeaderContainer>
         </CompassThemeProvider>
     );
