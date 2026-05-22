@@ -14,9 +14,8 @@ import type {ActionResult} from 'mattermost-redux/types/actions';
 import deepFreeze from 'mattermost-redux/utils/deep_freeze';
 import {isEmail} from 'mattermost-redux/utils/helpers';
 
-import {trackEvent} from 'actions/telemetry_actions';
-
 import {focusElement} from 'utils/a11y_utils';
+import {isMembershipPolicyEnforced} from 'utils/channel_utils';
 
 import {InviteType} from './invite_as';
 import InviteView, {initializeInviteState} from './invite_view';
@@ -55,6 +54,7 @@ export type Props = {
             users: UserProfile[],
             emails: string[],
             message: string,
+            guestMagicLink: boolean,
         ) => Promise<ActionResult<InviteResults>>;
         sendMembersInvites: (
             teamId: string,
@@ -78,11 +78,11 @@ export type Props = {
     isCloud: boolean;
     canAddUsers: boolean;
     canInviteGuests: boolean;
+    canInviteGuestsWithMagicLink: boolean;
     onExited: () => void;
     channelToInvite?: Channel;
     initialValue?: string;
     inviteAsGuest?: boolean;
-    roleForTrackFlow: {started_by_role: string};
     focusOriginElement?: string;
 }
 
@@ -99,15 +99,17 @@ type State = {
     result: ResultState;
     termWithoutResults: string | null;
     show: boolean;
+    useGuestMagicLink: boolean;
 };
 
 export default class InvitationModal extends React.PureComponent<Props, State> {
     defaultState: State = deepFreeze({
         view: View.INVITE,
         termWithoutResults: null,
-        invite: initializeInviteState(this.props.initialValue || '', this.props.inviteAsGuest),
+        invite: initializeInviteState(this.props.initialValue || '', this.props.inviteAsGuest, this.props.canInviteGuestsWithMagicLink),
         result: defaultResultState,
         show: true,
+        useGuestMagicLink: false,
     });
     constructor(props: Props) {
         super(props);
@@ -176,15 +178,18 @@ export default class InvitationModal extends React.PureComponent<Props, State> {
         }
     };
 
+    toggleGuestMagicLink = () => {
+        this.setState((state) => ({
+            ...state,
+            useGuestMagicLink: !state.useGuestMagicLink,
+        }));
+    };
+
     invite = async () => {
         if (!this.props.currentTeam) {
             return;
         }
         const inviteAs = this.state.invite.inviteType;
-        if (inviteAs === InviteType.MEMBER && this.props.isCloud) {
-            trackEvent('cloud_invite_users', 'click_send_invitations', {num_invitations: this.state.invite.usersEmails.length, ...this.props.roleForTrackFlow});
-        }
-        trackEvent('invite_users', 'click_invite', this.props.roleForTrackFlow);
 
         const users: UserProfile[] = [];
         const emails: string[] = [];
@@ -218,6 +223,7 @@ export default class InvitationModal extends React.PureComponent<Props, State> {
                 users,
                 emails,
                 this.state.invite.customMessage.open ? this.state.invite.customMessage.message : '',
+                this.state.useGuestMagicLink,
             );
             invites = result.data!;
         }
@@ -265,8 +271,11 @@ export default class InvitationModal extends React.PureComponent<Props, State> {
     // Filter channels based on the current invite type and search term
     filterChannels = (channels: Channel[], isGuestInvite: boolean, searchTerm: string = '') => {
         return channels.filter((channel) => {
-            // For guest invites, filter out policy_enforced channels
-            if (isGuestInvite && channel.policy_enforced) {
+            // For guest invites, filter out channels whose policy gates
+            // membership. Permission-only policies (e.g. file upload
+            // restrictions) do not block guest invites — the server-side
+            // gate in `prepareInviteGuestsToChannels` reads the same bit.
+            if (isGuestInvite && isMembershipPolicyEnforced(channel)) {
                 return false;
             }
 
@@ -424,6 +433,8 @@ export default class InvitationModal extends React.PureComponent<Props, State> {
                 footerClass='InvitationModal__footer'
                 onClose={this.handleHide}
                 channelToInvite={this.props.channelToInvite}
+                useGuestMagicLink={this.state.useGuestMagicLink}
+                toggleGuestMagicLink={this.toggleGuestMagicLink}
                 {...this.state.invite}
             />
         );

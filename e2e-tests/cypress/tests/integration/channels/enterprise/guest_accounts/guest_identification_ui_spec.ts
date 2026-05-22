@@ -15,8 +15,8 @@
  */
 import dayjs from 'dayjs';
 
-import * as TIMEOUTS from '../../../../fixtures/timeouts';
-import {getAdminAccount} from '../../../../support/env';
+import * as TIMEOUTS from '@/fixtures/timeouts';
+import {getAdminAccount} from '@/support/env';
 
 describe('Verify Guest User Identification in different screens', () => {
     const admin = getAdminAccount();
@@ -223,6 +223,6 @@ describe('Verify Guest User Identification in different screens', () => {
         });
 
         // # Close and Clear the Search Autocomplete
-        cy.get('#searchFormContainer').find('.input-clear-x').click({force: true});
+        cy.findByTestId('searchBoxClose').click({force: true});
     });
 });

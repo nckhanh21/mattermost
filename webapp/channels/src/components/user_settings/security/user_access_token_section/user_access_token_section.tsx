@@ -4,12 +4,12 @@
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
 
+import {Button} from '@mattermost/shared/components/button';
+import {isMobile} from '@mattermost/shared/utils/user_agent';
 import type {UserAccessToken, UserProfile} from '@mattermost/types/users';
 
 import type {ActionResult} from 'mattermost-redux/types/actions';
 import * as UserUtils from 'mattermost-redux/utils/user_utils';
-
-import {trackEvent} from 'actions/telemetry_actions.jsx';
 
 import ConfirmModal from 'components/confirm_modal';
 import ExternalLink from 'components/external_link';
@@ -21,7 +21,6 @@ import WarningIcon from 'components/widgets/icons/fa_warning_icon';
 
 import {Constants, DeveloperLinks} from 'utils/constants';
 import * as Keyboard from 'utils/keyboard';
-import {isMobile} from 'utils/user_agent';
 
 const SECTION_TOKENS = 'tokens';
 const TOKEN_CREATING = 'creating';
@@ -245,7 +244,6 @@ export default class UserAccessTokenSection extends React.PureComponent<Props, S
             ),
             confirmComplete: () => {
                 this.handleCreateToken();
-                trackEvent('settings', 'system_admin_create_user_access_token');
             },
         });
     };
@@ -281,7 +279,7 @@ export default class UserAccessTokenSection extends React.PureComponent<Props, S
                             defaultMessage={'Are you sure you want to delete the <b>{description}</b> token?'}
                             values={{
                                 description: token.description,
-                                b: (chunks: string) => <b>{chunks}</b>,
+                                b: (chunks) => <b>{chunks}</b>,
                             }}
                         />
                     </p>
@@ -295,7 +293,6 @@ export default class UserAccessTokenSection extends React.PureComponent<Props, S
             ),
             confirmComplete: () => {
                 this.revokeToken(tokenId);
-                trackEvent('settings', 'revoke_user_access_token');
             },
         });
     };
@@ -312,8 +309,6 @@ export default class UserAccessTokenSection extends React.PureComponent<Props, S
         const {error} = await this.props.actions.enableUserAccessToken(tokenId);
         if (error) {
             this.setState({serverError: error.message});
-        } else {
-            trackEvent('settings', 'activate_user_access_token');
         }
     };
 
@@ -321,8 +316,6 @@ export default class UserAccessTokenSection extends React.PureComponent<Props, S
         const {error} = await this.props.actions.disableUserAccessToken(tokenId);
         if (error) {
             this.setState({serverError: error.message});
-        } else {
-            trackEvent('settings', 'deactivate_user_access_token');
         }
     };
 
@@ -564,15 +557,15 @@ export default class UserAccessTokenSection extends React.PureComponent<Props, S
                             saving={this.state.saving}
                             onClick={this.confirmCreateToken}
                         />
-                        <button
-                            className='btn btn-tertiary'
+                        <Button
+                            emphasis='tertiary'
                             onClick={this.stopCreatingToken}
                         >
                             <FormattedMessage
                                 id='user.settings.tokens.cancel'
                                 defaultMessage='Cancel'
                             />
-                        </button>
+                        </Button>
                     </div>
                 </div>
             );
@@ -617,16 +610,15 @@ export default class UserAccessTokenSection extends React.PureComponent<Props, S
             );
         } else {
             newTokenSection = (
-                <a
-                    className='btn btn-primary'
-                    href='#'
+                <Button
+                    emphasis='primary'
                     onClick={this.startCreatingToken}
                 >
                     <FormattedMessage
                         id='user.settings.tokens.create'
                         defaultMessage='Create Token'
                     />
-                </a>
+                </Button>
             );
         }
 

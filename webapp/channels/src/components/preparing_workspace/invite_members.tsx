@@ -46,8 +46,6 @@ const InviteMembers = (props: Props) => {
         className += ' ' + props.className;
     }
 
-    useEffect(props.onPageView, []);
-
     useEffect(() => {
         setShowSkipButton(false);
         const timer = setTimeout(() => {
@@ -168,7 +166,7 @@ const InviteMembers = (props: Props) => {
                 <Description>
                     <FormattedMessage
                         id={'onboarding_wizard.invite_members.description'}
-                        defaultMessage='Collaboration is tough by yourself. Invite a few team members. Separate each email address with a space or comma.'
+                        defaultMessage='Collaboration is tough by yourself. Invite a few team members. Separate each email address with a comma or semicolon.'
                     />
                 </Description>
                 <PageBody>

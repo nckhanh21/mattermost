@@ -2,8 +2,9 @@
 // See LICENSE.txt for license information.
 
 import {Team} from '@mattermost/types/teams';
-import {getRandomId} from '../../../utils';
-import * as TIMEOUTS from '../../../fixtures/timeouts';
+
+import * as TIMEOUTS from '@/fixtures/timeouts';
+import {getRandomId} from '@/utils';
 
 export function createBotInteractive(team: Team, username = `bot-${getRandomId()}`) {
     // # Visit the Integrations > Bot Accounts page

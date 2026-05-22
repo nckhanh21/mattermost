@@ -35,6 +35,7 @@ type AdminDefinitionSettingCustom = Omit<AdminDefinitionSettingBase, 'label'> & 
     showTitle?: boolean;
     component: Component;
     label?: string | MessageDescriptor;
+    validate?: Validator;
 }
 
 type AdminDefinitionSettingBase = {
@@ -74,7 +75,7 @@ export type AdminDefinitionSettingInput = AdminDefinitionSettingBase & {
     setFromMetadataField?: string;
     dynamic_value?: (value: any, config: Partial<AdminConfig>, state: any) => string;
     max_length?: number;
-    default?: string;
+    default?: string | ((value: any, config: Partial<AdminConfig>, state: any) => string);
 }
 
 type AdminDefinitionSettingGenerated = AdminDefinitionSettingBase & {
@@ -107,7 +108,11 @@ export type AdminDefinitionSettingFileUpload = AdminDefinitionSettingBase & {
     uploading_text: string | MessageDescriptor;
     fileType: string;
     upload_action: (file: File, success: (data: any) => void, error: (err: any) => void) => void;
-    set_action?: () => void;
+    set_action?: (
+        success: (filename: string) => void,
+        error: (err: {message: string}) => void,
+        data: string,
+    ) => void;
     setFromMetadataField?: string;
     remove_action: (success: (data: any) => void, error: (err: any) => void) => void;
 }
@@ -183,12 +188,15 @@ export type AdminDefinitionConfigSchemaSettings = {
 
 export type AdminDefinitionConfigSchemaSection = {
     key: string;
-    title?: string;
+    title?: string | MessageDescriptor;
     subtitle?: string;
+    description?: string | MessageDescriptor;
+    license_sku?: string;
     settings: AdminDefinitionSetting[];
     header?: string | MessageDescriptor;
     footer?: string | MessageDescriptor;
     component?: Component;
+    componentProps?: any;
     isHidden?: Check;
 }
 

@@ -13,15 +13,16 @@
 import {Channel} from '@mattermost/types/channels';
 import {Team} from '@mattermost/types/teams';
 import {UserProfile} from '@mattermost/types/users';
-import * as TIMEOUTS from '../../../../../fixtures/timeouts';
+
 
 import {checkBoxes} from './constants';
-
 import {
     disableAllChannelModeratedPermissions,
     enableAllChannelModeratedPermissions,
     saveConfigForChannel,
 } from './helpers';
+
+import * as TIMEOUTS from '@/fixtures/timeouts';
 
 describe('Channel Moderation', () => {
     let guestUser: UserProfile;

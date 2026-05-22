@@ -1,17 +1,19 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {fireEvent, screen, waitFor} from '@testing-library/react';
-import React from 'react';
 import type {ComponentProps} from 'react';
+import React from 'react';
 
 import type {UserPropertyField} from '@mattermost/types/properties';
 
+import {Client4} from 'mattermost-redux/client';
+
 import ModalController from 'components/modal_controller';
 
-import {renderWithContext} from 'tests/react_testing_utils';
+import {renderWithContext, screen, userEvent, waitFor} from 'tests/react_testing_utils';
 
 import DotMenu from './user_properties_dot_menu';
+import {useUserPropertyFields} from './user_properties_utils';
 
 describe('UserPropertyDotMenu', () => {
     const baseField: UserPropertyField = {
@@ -22,6 +24,11 @@ describe('UserPropertyDotMenu', () => {
         create_at: 1736541716295,
         delete_at: 0,
         update_at: 0,
+        created_by: '',
+        updated_by: '',
+        target_id: '',
+        target_type: '',
+        object_type: '',
         attrs: {
             sort_order: 0,
             visibility: 'when_set',
@@ -32,10 +39,7 @@ describe('UserPropertyDotMenu', () => {
     const updateField = jest.fn();
     const deleteField = jest.fn();
     const createField = jest.fn();
-
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
+    const getFields = jest.spyOn(Client4, 'getCustomProfileAttributeFields');
 
     const renderComponent = (field: UserPropertyField = baseField, dotMenuProps?: Partial<ComponentProps<typeof DotMenu>>) => {
         return renderWithContext(
@@ -54,6 +58,11 @@ describe('UserPropertyDotMenu', () => {
             ),
         );
     };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        getFields.mockReset();
+    });
 
     it('renders dot menu button', () => {
         renderComponent();
@@ -79,7 +88,7 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${baseField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Verify the current visibility option is shown
         expect(screen.getByText('Hide when empty')).toBeInTheDocument();
@@ -90,15 +99,15 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${baseField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Open the visibility submenu
         const visibilityMenuItem = screen.getByRole('menuitem', {name: /Visibility/});
-        fireEvent.mouseOver(visibilityMenuItem);
+        await userEvent.hover(visibilityMenuItem);
 
         // Click "Always show" option
         const alwaysShowOption = screen.getByRole('menuitemradio', {name: /Always show/});
-        fireEvent.click(alwaysShowOption);
+        await userEvent.click(alwaysShowOption);
 
         // Verify the field was updated with the new visibility
         expect(updateField).toHaveBeenCalledWith({
@@ -115,7 +124,7 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${baseField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Verify both link options are shown
         expect(screen.getByText('Link attribute to AD/LDAP')).toBeInTheDocument();
@@ -132,14 +141,14 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${pendingField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Verify both link options are not shown
         expect(screen.queryByText('Link attribute to AD/LDAP')).not.toBeInTheDocument();
         expect(screen.queryByText('Link attribute to SAML')).not.toBeInTheDocument();
     });
 
-    it('shows "Edit link with" text when LDAP attribute is linked', async () => {
+    it('shows "Edit LDAP link" text when LDAP attribute is linked', async () => {
         const linkedField = {
             ...baseField,
             attrs: {
@@ -152,14 +161,13 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${linkedField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
-        // Verify the LDAP link text shows the linked property
-        expect(screen.getByText('Edit link with:')).toBeInTheDocument();
-        expect(screen.getByText('AD/LDAP: employeeID')).toBeInTheDocument();
+        // Verify the LDAP link text shows the edit option
+        expect(screen.getByText('Edit LDAP link')).toBeInTheDocument();
     });
 
-    it('shows "Edit link with" text when SAML attribute is linked', async () => {
+    it('shows "Edit SAML link" text when SAML attribute is linked', async () => {
         const linkedField = {
             ...baseField,
             attrs: {
@@ -172,11 +180,42 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${linkedField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
-        // Verify the SAML link text shows the linked property
-        expect(screen.getByText('Edit link with:')).toBeInTheDocument();
-        expect(screen.getByText('SAML: position')).toBeInTheDocument();
+        // Verify the SAML link text shows the edit option
+        expect(screen.getByText('Edit SAML link')).toBeInTheDocument();
+    });
+
+    it('clears admin-managed by setting managed to empty string, not by removing the key', async () => {
+        const adminManagedField: UserPropertyField = {
+            ...baseField,
+            id: 'admin-managed-field',
+            attrs: {
+                ...baseField.attrs,
+                managed: 'admin',
+            },
+        };
+
+        renderComponent(adminManagedField);
+
+        const menuButton = screen.getByTestId(`user-property-field_dotmenu-${adminManagedField.id}`);
+        await userEvent.click(menuButton);
+
+        const editableToggle = screen.getByRole('menuitemcheckbox', {name: /Editable by users/});
+        await userEvent.click(editableToggle);
+
+        // The server PATCH uses merge semantics: omitted keys are preserved. Toggling off
+        // admin-managed must send managed: '' explicitly; deleting the key would silently
+        // leave the field admin-managed on the server.
+        expect(updateField).toHaveBeenCalledWith({
+            ...adminManagedField,
+            attrs: {
+                sort_order: 0,
+                visibility: 'when_set',
+                value_type: '',
+                managed: '',
+            },
+        });
     });
 
     it('handles field duplication', async () => {
@@ -184,18 +223,70 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${baseField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Click the duplicate option
-        fireEvent.click(screen.getByText(/Duplicate attribute/));
+        await userEvent.click(screen.getByText(/Duplicate attribute/));
 
         // Wait for createField to be called
         await waitFor(() => {
-            // Verify createField was called with the correct parameters
+            // Verify createField was called with the slugified snake_case name
+            // ('Test Field' -> 'test_field') plus the _copy suffix.
             expect(createField).toHaveBeenCalledWith(expect.objectContaining({
                 id: baseField.id,
-                name: 'Test Field (copy)',
+                name: 'test_field_copy',
             }));
+        });
+    });
+
+    it('duplicate produces _2 suffix when base name is already taken', async () => {
+        const existingCopy = {
+            ...baseField,
+            id: 'copy-id',
+            name: 'test_field_copy',
+            attrs: {
+                ...baseField.attrs,
+                sort_order: 1,
+            },
+        };
+        getFields.mockResolvedValueOnce([baseField, existingCopy]);
+
+        const Harness = () => {
+            const [fields, readIO,, itemOps] = useUserPropertyFields();
+
+            if (readIO.loading || !fields.data[baseField.id]) {
+                return null;
+            }
+
+            return (
+                <div>
+                    <DotMenu
+                        field={fields.data[baseField.id]}
+                        canCreate={true}
+                        createField={itemOps.create}
+                        updateField={itemOps.update}
+                        deleteField={itemOps.delete}
+                    />
+                    {fields.order.map((id) => (
+                        <span
+                            key={id}
+                            data-testid={`field-name-${id}`}
+                        >
+                            {fields.data[id].name}
+                        </span>
+                    ))}
+                </div>
+            );
+        };
+
+        renderWithContext(<Harness/>);
+
+        const menuButton = await screen.findByTestId(`user-property-field_dotmenu-${baseField.id}`);
+        await userEvent.click(menuButton);
+        await userEvent.click(screen.getByText(/Duplicate attribute/));
+
+        await waitFor(() => {
+            expect(screen.getByText('test_field_copy_2')).toBeInTheDocument();
         });
     });
 
@@ -204,7 +295,7 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${baseField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Verify duplicate option is not shown
         expect(screen.queryByText(/Duplicate attribute/)).not.toBeInTheDocument();
@@ -215,11 +306,11 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${baseField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Click delete option
         const deleteOption = screen.getByRole('menuitem', {name: /Delete attribute/});
-        fireEvent.click(deleteOption);
+        await userEvent.click(deleteOption);
 
         await waitFor(() => {
             // Verify the delete modal is shown
@@ -228,7 +319,7 @@ describe('UserPropertyDotMenu', () => {
 
         // click delete confirm button
         const deleteConfirmButton = screen.getByRole('button', {name: /Delete/});
-        fireEvent.click(deleteConfirmButton);
+        await userEvent.click(deleteConfirmButton);
 
         await waitFor(() => {
             // Verify deleteField was called
@@ -247,11 +338,11 @@ describe('UserPropertyDotMenu', () => {
 
         // Open the menu
         const menuButton = screen.getByTestId(`user-property-field_dotmenu-${pendingField.id}`);
-        fireEvent.click(menuButton);
+        await userEvent.click(menuButton);
 
         // Click delete option
         const deleteOption = screen.getByRole('menuitem', {name: /Delete attribute/});
-        fireEvent.click(deleteOption);
+        await userEvent.click(deleteOption);
 
         await waitFor(() => {
             // Verify deleteField was called

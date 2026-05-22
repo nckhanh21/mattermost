@@ -84,6 +84,13 @@ export type OwnProps = {
      * Some additional data to pass down to rendered component to aid in rendering decisions
      */
     messageMetadata?: Record<string, string>;
+
+    /**
+     * Whether or not to render mmaction:// links as inline action buttons.
+     * Set per-post by the caller (e.g. enabled for bot/webhook/plugin posts).
+     * Defaults to false.
+     */
+    allowInlineActions?: boolean;
 }
 
 function Markdown({
@@ -103,8 +110,8 @@ function Markdown({
     emojiMap,
     userIds,
     messageMetadata,
+    allowInlineActions,
     enableFormatting,
-    autolinkedUrlSchemes,
     siteURL,
     hasImageProxy,
     team,
@@ -124,7 +131,6 @@ function Markdown({
     }
 
     const inputOptions = Object.assign({
-        autolinkedUrlSchemes,
         siteURL,
         mentionKeys,
         highlightKeys,
@@ -154,6 +160,7 @@ function Markdown({
         editedAt,
         atSumOfMembersMentions: options?.atSumOfMembersMentions,
         atPlanMentions: options?.atPlanMentions,
+        allowInlineActions,
     });
 }
 

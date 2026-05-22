@@ -10,8 +10,8 @@
 // Stage: @prod
 // Group: @channels @team_settings
 
-import * as TIMEOUTS from '../../../fixtures/timeouts';
-import {getAdminAccount} from '../../../support/env';
+import * as TIMEOUTS from '@/fixtures/timeouts';
+import {getAdminAccount} from '@/support/env';
 
 describe('Teams Suite', () => {
     let testTeam;
@@ -247,6 +247,8 @@ describe('Teams Suite', () => {
 
         // Save and close
         cy.uiSaveAndClose();
+
+        cy.wait(TIMEOUTS.ONE_HUNDRED_MILLIS);
 
         // # Open team menu and click "Team Settings"
         cy.uiOpenTeamMenu('Team settings');

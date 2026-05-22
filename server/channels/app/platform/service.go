@@ -30,7 +30,6 @@ import (
 	"github.com/mattermost/mattermost/server/v8/einterfaces"
 	"github.com/mattermost/mattermost/server/v8/platform/services/cache"
 	"github.com/mattermost/mattermost/server/v8/platform/services/searchengine"
-	"github.com/mattermost/mattermost/server/v8/platform/services/searchengine/bleveengine"
 	"github.com/mattermost/mattermost/server/v8/platform/shared/filestore"
 )
 
@@ -67,8 +66,7 @@ type PlatformService struct {
 	isFirstUserAccountLock sync.Mutex
 	isFirstUserAccount     atomic.Bool
 
-	logger              *mlog.Logger
-	notificationsLogger *mlog.Logger
+	logger *mlog.Logger
 
 	startMetrics bool
 	metrics      *platformMetrics
@@ -96,7 +94,10 @@ type PlatformService struct {
 	searchConfigListenerId  string
 	searchLicenseListenerId string
 
+	esWatcher *searchEngineWatcher
+
 	ldapDiagnostic einterfaces.LdapDiagnosticInterface
+	samlDiagnostic einterfaces.SamlDiagnosticInterface
 
 	Jobs *jobs.JobServer
 
@@ -119,6 +120,24 @@ type PlatformService struct {
 	forceEnableRedis bool
 
 	pdpService einterfaces.PolicyDecisionPointInterface
+
+	startTime time.Time
+
+	// installTypeOverride overrides MM_INSTALL_TYPE in support packet diagnostics.
+	installTypeOverride string
+
+	// logRootPathOverride overrides MM_LOG_PATH for log root path validation.
+	logRootPathOverride string
+}
+
+// SetInstallTypeOverride sets the install type override for support packet diagnostics.
+func (ps *PlatformService) SetInstallTypeOverride(v string) {
+	ps.installTypeOverride = v
+}
+
+// SetLogRootPathOverride sets the log root path override for log file validation.
+func (ps *PlatformService) SetLogRootPathOverride(v string) {
+	ps.logRootPathOverride = v
 }
 
 type HookRunner interface {
@@ -134,6 +153,7 @@ func New(sc ServiceConfig, options ...Option) (*PlatformService, error) {
 		Store:               sc.Store,
 		clusterIFace:        sc.Cluster,
 		hashSeed:            maphash.MakeSeed(),
+		startTime:           time.Now(),
 		goroutineExitSignal: make(chan struct{}, 1),
 		goroutineBuffered:   make(chan struct{}, runtime.NumCPU()),
 		WebSocketRouter: &WebSocketRouter{
@@ -171,9 +191,41 @@ func New(sc ServiceConfig, options ...Option) (*PlatformService, error) {
 		ps.configStore = configStore
 	}
 
-	// Step 1: Cache provider.
+	// Step 1: Start logging.
+	err := ps.initLogging()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize logging: %w", err)
+	}
+
+	ps.Log().Info("Server is initializing...", mlog.String("go_version", runtime.Version()))
+
+	logCurrentVersion := fmt.Sprintf("Current version is %v (%v/%v/%v/%v)", model.CurrentVersion, model.BuildNumber, model.BuildDate, model.BuildHash, model.BuildHashEnterprise)
+	ps.Log().Info(
+		logCurrentVersion,
+		mlog.String("current_version", model.CurrentVersion),
+		mlog.String("build_number", model.BuildNumber),
+		mlog.String("build_date", model.BuildDate),
+		mlog.String("build_hash", model.BuildHash),
+		mlog.String("build_hash_enterprise", model.BuildHashEnterprise),
+		mlog.String("service_environment", model.GetServiceEnvironment()),
+	)
+
+	if model.BuildEnterpriseReady == "true" {
+		isTrial := false
+		if licence := ps.License(); licence != nil {
+			isTrial = licence.IsTrial
+		}
+		ps.Log().Info(
+			"Enterprise Build",
+			mlog.Bool("enterprise_build", true),
+			mlog.Bool("is_trial", isTrial),
+		)
+	} else {
+		ps.Log().Info("Team Edition Build", mlog.Bool("enterprise_build", false))
+	}
+
+	// Step 2: Cache provider.
 	cacheConfig := ps.configStore.Get().CacheSettings
-	var err error
 	if *cacheConfig.CacheType == model.CacheTypeLRU {
 		ps.cacheProvider = cache.NewProvider()
 	} else if *cacheConfig.CacheType == model.CacheTypeRedis {
@@ -191,29 +243,15 @@ func New(sc ServiceConfig, options ...Option) (*PlatformService, error) {
 		return nil, fmt.Errorf("unable to create cache provider: %w", err)
 	}
 
-	// The value of res is used later, after the logger is initialized.
-	// There's a certain order of steps we need to follow in the server startup phase.
 	res, err := ps.cacheProvider.Connect()
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to cache provider: %w", err)
 	}
 
-	// Step 2: Start logging.
-	if err2 := ps.initLogging(); err2 != nil {
-		return nil, fmt.Errorf("failed to initialize logging: %w", err2)
-	}
 	ps.Log().Info("Successfully connected to cache backend", mlog.String("backend", *cacheConfig.CacheType), mlog.String("result", res))
-
-	// This is called after initLogging() to avoid a race condition.
-	ps.Log().Info("Server is initializing...", mlog.String("go_version", runtime.Version()))
 
 	// Step 3: Search Engine
 	searchEngine := searchengine.NewBroker(ps.Config())
-	bleveEngine := bleveengine.NewBleveEngine(ps.Config())
-	if err := bleveEngine.Start(); err != nil {
-		return nil, err
-	}
-	searchEngine.RegisterBleveEngine(bleveEngine)
 	ps.SearchEngine = searchEngine
 
 	// Step 4: Init Enterprise
@@ -241,7 +279,10 @@ func New(sc ServiceConfig, options ...Option) (*PlatformService, error) {
 			// Timer layer
 			// |
 			// Cache layer
-			ps.sqlStore, err = sqlstore.New(ps.Config().SqlSettings, ps.Log(), ps.metricsIFace, ps.storeOptions...)
+			opts := append(ps.storeOptions, sqlstore.WithFeatureFlags(func() *model.FeatureFlags {
+				return ps.Config().FeatureFlags
+			}))
+			ps.sqlStore, err = sqlstore.New(ps.Config().SqlSettings, ps.Log(), ps.metricsIFace, opts...)
 			if err != nil {
 				return nil, err
 			}
@@ -445,6 +486,14 @@ func (ps *PlatformService) ShutdownMetrics() error {
 	return nil
 }
 
+// GetMetricsRouter returns the metrics router. This is primarily used for testing.
+func (ps *PlatformService) GetMetricsRouter() http.Handler {
+	if ps.metrics != nil {
+		return ps.metrics.router
+	}
+	return nil
+}
+
 func (ps *PlatformService) ShutdownConfig() error {
 	ps.RemoveConfigListener(ps.configListenerId)
 
@@ -484,6 +533,10 @@ func (ps *PlatformService) initEnterprise() {
 
 	if ldapDiagnosticInterface != nil {
 		ps.ldapDiagnostic = ldapDiagnosticInterface(ps)
+	}
+
+	if samlDiagnosticInterface != nil {
+		ps.samlDiagnostic = samlDiagnosticInterface(ps)
 	}
 
 	if licenseInterface != nil {
@@ -619,7 +672,11 @@ func (ps *PlatformService) LdapDiagnostic() einterfaces.LdapDiagnosticInterface 
 	return ps.ldapDiagnostic
 }
 
-// DatabaseTypeAndSchemaVersion returns the Database type (postgres or mysql) and current version of the schema
+func (ps *PlatformService) SamlDiagnostic() einterfaces.SamlDiagnosticInterface {
+	return ps.samlDiagnostic
+}
+
+// DatabaseTypeAndSchemaVersion returns the database type and current version of the schema
 func (ps *PlatformService) DatabaseTypeAndSchemaVersion() (string, string, error) {
 	schemaVersion, err := ps.Store.GetDBSchemaVersion()
 	if err != nil {

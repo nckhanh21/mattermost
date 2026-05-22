@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import axios, {AxiosError, Method} from 'axios';
+import axios, {AxiosError} from 'axios';
 
 import * as timeouts from '../fixtures/timeouts';
 
@@ -12,7 +12,7 @@ export interface ExternalRequestUser{
 interface ExternalRequestArg {
     baseUrl: string;
     user: ExternalRequestUser;
-    method: Method;
+    method: 'get' | 'post' | 'put' | 'delete' | 'patch';
     path: string;
     data: any;
 }
@@ -38,7 +38,7 @@ export default async function externalRequest(arg: ExternalRequestArg): Promise<
             cookieString += nameAndValue + ';';
         });
     } catch (error) {
-        return getErrorResponse(error);
+        return getErrorResponse(error as AxiosError);
     }
 
     try {
@@ -61,7 +61,7 @@ export default async function externalRequest(arg: ExternalRequestArg): Promise<
         };
     } catch (error) {
         // If we have a response for the error, pull out the relevant parts
-        return getErrorResponse(error);
+        return getErrorResponse(error as AxiosError);
     }
 }
 

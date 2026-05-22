@@ -15,14 +15,29 @@ import {
     PoundIcon,
     InformationOutlineIcon,
     SyncIcon,
+    ShieldAlertOutlineIcon,
 } from '@mattermost/compass-icons/components';
 import type IconProps from '@mattermost/compass-icons/components/props';
+import {WithTooltip} from '@mattermost/shared/components/tooltip';
 import type {UserPropertyField} from '@mattermost/types/properties';
 
 import * as Menu from 'components/menu';
-import WithTooltip from 'components/with_tooltip';
+
+import {getUserPropertyFieldLabel} from 'utils/properties';
 
 import './selector_menus.scss';
+
+type AttributeLabelProps = {
+    displayName: string;
+    name: string;
+};
+
+const AttributeLabel = ({displayName, name}: AttributeLabelProps) => (
+    <span className='attribute-selector-label'>
+        <span className='attribute-selector-label__display-name'>{displayName}</span>
+        <span className='attribute-selector-label__unique-name'>{name}</span>
+    </span>
+);
 
 // Define AttributeIcon outside the main component
 const AttributeIcon = (props: IconProps & { attribute?: UserPropertyField }) => {
@@ -62,9 +77,10 @@ interface AttributeSelectorProps {
     buttonId: string;
     autoOpen?: boolean;
     onMenuOpened?: () => void;
+    enableUserManagedAttributes: boolean;
 }
 
-const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled, onChange, menuId, buttonId, autoOpen = false, onMenuOpened}: AttributeSelectorProps) => {
+const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled, onChange, menuId, buttonId, autoOpen = false, onMenuOpened, enableUserManagedAttributes}: AttributeSelectorProps) => {
     const {formatMessage} = useIntl();
     const [filter, setFilter] = useState('');
     const prevAutoOpen = useRef(false);
@@ -74,8 +90,12 @@ const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled,
     }, []); // setFilter is stable
 
     const options = useMemo(() => {
+        const q = filter.toLowerCase();
         return availableAttributes.filter((attr) => {
-            return attr.name.toLowerCase().includes(filter.toLowerCase());
+            return (
+                attr.name.toLowerCase().includes(q) ||
+                getUserPropertyFieldLabel(attr).toLowerCase().includes(q)
+            );
         });
     }, [availableAttributes, filter]);
 
@@ -87,6 +107,13 @@ const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled,
     const selectedAttributeObject = useMemo(() => {
         return availableAttributes.find((attr) => attr.name === currentAttribute);
     }, [currentAttribute, availableAttributes]);
+
+    let selectedAttributeLabel;
+    if (selectedAttributeObject) {
+        selectedAttributeLabel = getUserPropertyFieldLabel(selectedAttributeObject);
+    } else {
+        selectedAttributeLabel = currentAttribute || formatMessage({id: 'admin.access_control.table_editor.selector.select_attribute', defaultMessage: 'Select attribute'});
+    }
 
     useEffect(() => {
         if (autoOpen && !prevAutoOpen.current) {
@@ -109,7 +136,7 @@ const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled,
                 children: (
                     <>
                         <AttributeIcon attribute={selectedAttributeObject}/>
-                        {currentAttribute || formatMessage({id: 'admin.access_control.table_editor.selector.select_attribute', defaultMessage: 'Select attribute'})}
+                        {selectedAttributeLabel}
                     </>
                 ),
                 dataTestId: 'attributeSelectorMenuButton',
@@ -132,8 +159,15 @@ const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled,
             />
             {options.map((option) => {
                 const {name} = option;
+                const displayName = option.attrs?.display_name;
+
+                // hasSpaces checks the CEL identifier (name), not the display label.
+                // New fields cannot have spaces in name but leaving this check for backwards compatibility with grandfathered legacy fields.
                 const hasSpaces = name.includes(' ');
                 const isSynced = option.attrs?.ldap || option.attrs?.saml;
+                const isAdminManaged = option.attrs?.managed === 'admin';
+                const isProtected = option.attrs?.protected;
+                const allowed = isSynced || isAdminManaged || isProtected || enableUserManagedAttributes;
 
                 const menuItem = (
                     <Menu.Item
@@ -143,8 +177,15 @@ const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled,
                         forceCloseOnSelect={true}
                         aria-checked={name === currentAttribute}
                         onClick={hasSpaces ? undefined : () => handleAttributeChange(name)}
-                        labels={<span>{name}</span>}
-                        disabled={hasSpaces}
+                        labels={
+                            displayName ? (
+                                <AttributeLabel
+                                    displayName={displayName}
+                                    name={name}
+                                />
+                            ) : <span>{name}</span>
+                        }
+                        disabled={hasSpaces || !allowed}
                         leadingElement={
                             <AttributeIcon
                                 attribute={option}
@@ -156,6 +197,12 @@ const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled,
                                 {hasSpaces && (
                                     <InformationOutlineIcon
                                         size={18}
+                                    />
+                                )}
+                                {!allowed && !isSynced && (
+                                    <ShieldAlertOutlineIcon
+                                        size={18}
+                                        color='rgba(var(--center-channel-color-rgb), 0.5)'
                                     />
                                 )}
                                 {isSynced && (
@@ -178,6 +225,11 @@ const AttributeSelectorMenu = ({currentAttribute, availableAttributes, disabled,
                     tooltipContent = formatMessage({
                         id: 'admin.access_control.table_editor.attribute_spaces_not_supported',
                         defaultMessage: 'CEL is not compatible with variable names containing spaces',
+                    });
+                } else if (!allowed) {
+                    tooltipContent = formatMessage({
+                        id: 'admin.access_control.table_editor.not_safe_to_use',
+                        defaultMessage: 'Values for this attribute are managed by users and should not be used for access control. Please link attribute to AD/LDAP for use in access policies.',
                     });
                 } else if (isSynced) {
                     tooltipContent = formatMessage({

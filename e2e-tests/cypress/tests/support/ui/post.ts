@@ -63,7 +63,19 @@ function getPost(postId: string): ChainableT<JQuery> {
 }
 Cypress.Commands.add('getPost', getPost);
 
-export function verifySavedPost(postId, message) {
+function editLastPostWithNewMessage(message: string) {
+    cy.uiGetPostTextBox().type('{uparrow}');
+
+    // * Edit Post Input should appear
+    cy.get('#edit_textbox').should('be.visible');
+
+    // # Update the post message and click Save
+    cy.get('#edit_textbox').clear().type(message)
+    cy.get('#create_post').findByText('Save').scrollIntoView().click();
+}
+Cypress.Commands.add('editLastPostWithNewMessage', editLastPostWithNewMessage);
+
+export function verifySavedPost(postId: string, message: string) {
     // * Check that the center save icon has been updated correctly
     cy.get(`#post_${postId}`).trigger('mouseover', {force: true});
     cy.get(`#CENTER_flagIcon_${postId}`).
@@ -124,7 +136,7 @@ export function verifySavedPost(postId, message) {
     cy.get('#searchResultsCloseButton').should('be.visible').click();
 }
 
-export function verifyUnsavedPost(postId) {
+export function verifyUnsavedPost(postId: string) {
     // * Check that the center save icon has been updated correctly
     cy.get(`#post_${postId}`).trigger('mouseover', {force: true});
     cy.get(`#CENTER_flagIcon_${postId}`).
@@ -181,6 +193,16 @@ declare global {
     // eslint-disable-next-line @typescript-eslint/no-namespace
     namespace Cypress {
         interface Chainable {
+
+            /**
+             * Edit last post with a new message
+             *
+             * @param {string} - message
+             *
+             * @example
+             *   cy.editLastPostWithNewMessage('new message');
+             */
+            editLastPostWithNewMessage: typeof editLastPostWithNewMessage;
 
             /**
              * Get post profile image of a given post ID or the last post if post ID is not given

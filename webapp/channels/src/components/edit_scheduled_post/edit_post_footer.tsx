@@ -5,10 +5,10 @@ import React, {memo} from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useSelector} from 'react-redux';
 
+import {isMac} from '@mattermost/shared/utils/user_agent';
+
 import {Preferences} from 'mattermost-redux/constants';
 import {getBool} from 'mattermost-redux/selectors/entities/preferences';
-
-import {isMac} from 'utils/user_agent';
 
 import type {GlobalState} from 'types/store';
 
@@ -46,7 +46,7 @@ const EditPostFooter = ({onSave, onCancel}: Props) => {
                 defaultMessage='<strong>{key}ENTER</strong> to Save, <strong>ESC</strong> to Cancel'
                 values={{
                     key: ctrlSend ? ctrlSendKey : '',
-                    strong: (x: string) => <strong>{x}</strong>,
+                    strong: (x) => <strong>{x}</strong>,
                 }}
             />
         </div>

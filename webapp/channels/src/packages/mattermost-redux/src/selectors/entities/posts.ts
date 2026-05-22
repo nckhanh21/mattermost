@@ -34,6 +34,7 @@ import {
     comparePosts,
     isPostPendingOrFailed,
     isPostCommentMention,
+    isFromWebhook,
 } from 'mattermost-redux/utils/post_utils';
 import {isGuest} from 'mattermost-redux/utils/user_utils';
 
@@ -157,7 +158,8 @@ function isPostInteractable(post: Post | undefined) {
         !isPostEphemeral(post) &&
         !isSystemMessage(post) &&
         !isPostPendingOrFailed(post) &&
-        post.state !== Posts.POST_DELETED;
+        post.state !== Posts.POST_DELETED &&
+        post.type !== Posts.POST_TYPES.BURN_ON_READ;
 }
 
 export function getLatestInteractablePostId(state: GlobalState, channelId: string, rootId = '') {
@@ -336,7 +338,8 @@ export const getSearchResults: (state: GlobalState) => Post[] = createSelector(
             return [];
         }
 
-        return postIds.map((id) => posts[id]);
+        // Filter out posts that may no longer exist
+        return postIds.map((id) => posts[id]).filter((post) => post);
     },
 );
 
@@ -532,7 +535,15 @@ export function getUnreadPostsChunk(state: GlobalState, channelId: Channel['id']
         }
     }
 
-    return getPostsChunkInChannelAroundTime(state, channelId, timeStamp);
+    // Try to find a chunk where lastViewedAt falls within the post range
+    const chunkAroundTime = getPostsChunkInChannelAroundTime(state, channelId, timeStamp);
+
+    if (chunkAroundTime) {
+        return chunkAroundTime;
+    }
+
+    // All fetched posts are newer than lastViewedAt. Return the recent chunk.
+    return recentChunk;
 }
 
 export const isPostsChunkIncludingUnreadsPosts = (state: GlobalState, chunk: PostOrderBlock, timeStamp: number): boolean => {
@@ -577,7 +588,7 @@ export const makeIsPostCommentMention = (): ((state: GlobalState, postId: Post['
                         continue;
                     }
 
-                    if (p.user_id === currentUser.id) {
+                    if (p.user_id === currentUser.id && !isFromWebhook(p)) {
                         threadRepliedToByCurrentUser = true;
                     }
                 }

@@ -10,8 +10,8 @@
 // Stage: @prod
 // Group: @channels @notification
 
-import {getAdminAccount} from '../../../support/env';
-import {spyNotificationAs} from '../../../support/notification';
+import {getAdminAccount} from '@/support/env';
+import {spyNotificationAs} from '@/support/notification';
 
 describe('Notifications', () => {
     const admin = getAdminAccount();
@@ -175,7 +175,7 @@ describe('Notifications', () => {
     });
 
     it('MM-T184 Words that trigger mentions support Chinese', () => {
-        var customText = '番茄';
+        const customText = '番茄';
 
         // # Set Notification settings
         setNotificationSettings({first: false, username: false, shouts: false, custom: true, customText}, 'off-topic');

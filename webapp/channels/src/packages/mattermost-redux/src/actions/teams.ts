@@ -9,7 +9,7 @@ import type {Team, TeamMembership, TeamMemberWithError, GetTeamMembersOpts, Team
 import type {UserProfile} from '@mattermost/types/users';
 
 import {ChannelTypes, TeamTypes, UserTypes} from 'mattermost-redux/action_types';
-import {selectChannel} from 'mattermost-redux/actions/channels';
+import {markMultipleChannelsAsRead, selectChannel} from 'mattermost-redux/actions/channels';
 import {logError} from 'mattermost-redux/actions/errors';
 import {bindClientFunc, forceLogoutIfNecessary} from 'mattermost-redux/actions/helpers';
 import {loadRolesIfNeeded} from 'mattermost-redux/actions/roles';
@@ -21,6 +21,8 @@ import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
 import type {ActionResult, DispatchFunc, GetStateFunc, ActionFuncAsync} from 'mattermost-redux/types/actions';
 import EventEmitter from 'mattermost-redux/utils/event_emitter';
+
+import {handleAllMarkedRead} from './threads';
 
 async function getProfilesAndStatusesForMembers(userIds: string[], dispatch: DispatchFunc, getState: GetStateFunc) {
     const state = getState();
@@ -586,7 +588,7 @@ export function sendEmailInvitesToTeamGracefully(teamId: string, emails: string[
     });
 }
 
-export function sendEmailGuestInvitesToChannelsGracefully(teamId: string, channelIds: string[], emails: string[], message: string) {
+export function sendEmailGuestInvitesToChannelsGracefully(teamId: string, channelIds: string[], emails: string[], message: string, guestMagicLink = false) {
     return bindClientFunc({
         clientFunc: Client4.sendEmailGuestInvitesToChannelsGracefully,
         params: [
@@ -594,6 +596,7 @@ export function sendEmailGuestInvitesToChannelsGracefully(teamId: string, channe
             channelIds,
             emails,
             message,
+            guestMagicLink,
         ],
     });
 }
@@ -728,4 +731,22 @@ export function updateNoticesAsViewed(noticeIds: string[]) {
             noticeIds,
         ],
     });
+}
+
+export function markAllInTeamAsRead(userId: string, teamId: string): ActionFuncAsync {
+    return async (dispatch, getState) => {
+        let response;
+        try {
+            response = await Client4.markAllInTeamAsRead(userId, teamId);
+        } catch (error) {
+            forceLogoutIfNecessary(error, dispatch, getState);
+            dispatch(logError(error));
+            return {error};
+        }
+
+        dispatch(markMultipleChannelsAsRead(response.last_viewed_at_times));
+        dispatch(handleAllMarkedRead(teamId));
+
+        return {data: response};
+    };
 }

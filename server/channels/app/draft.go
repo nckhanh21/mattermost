@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/mattermost/mattermost/server/public/shared/request"
 	"github.com/mattermost/mattermost/server/v8/channels/store"
@@ -34,7 +35,7 @@ func (a *App) GetDraft(userID, channelID, rootID string) (*model.Draft, *model.A
 	return draft, nil
 }
 
-func (a *App) UpsertDraft(c request.CTX, draft *model.Draft, connectionID string) (*model.Draft, *model.AppError) {
+func (a *App) UpsertDraft(rctx request.CTX, draft *model.Draft, connectionID string) (*model.Draft, *model.AppError) {
 	if !*a.Config().ServiceSettings.AllowSyncedDrafts {
 		return nil, model.NewAppError("CreateDraft", "app.draft.feature_disabled", nil, "", http.StatusNotImplemented)
 	}
@@ -51,6 +52,16 @@ func (a *App) UpsertDraft(c request.CTX, draft *model.Draft, connectionID string
 		return nil, err
 	}
 
+	restrictDM, err := a.CheckIfChannelIsRestrictedDM(rctx, channel)
+	if err != nil {
+		return nil, err
+	}
+
+	if restrictDM {
+		err := model.NewAppError("CreateDraft", "api.draft.create_draft.can_not_draft_to_restricted_dm.error", nil, "", http.StatusBadRequest)
+		return nil, err
+	}
+
 	_, nErr := a.Srv().Store().User().Get(context.Background(), draft.UserId)
 	if nErr != nil {
 		return nil, model.NewAppError("CreateDraft", "app.user.get.app_error", nil, "", http.StatusInternalServerError).Wrap(nErr)
@@ -62,7 +73,25 @@ func (a *App) UpsertDraft(c request.CTX, draft *model.Draft, connectionID string
 		if deleteErr != nil {
 			return nil, model.NewAppError("CreateDraft", "app.draft.save.app_error", nil, "", http.StatusInternalServerError).Wrap(deleteErr)
 		}
+		rctx.Logger().Debug("Draft deleted via empty-message upsert", mlog.String("user_id", draft.UserId), mlog.String("channel_id", draft.ChannelId), mlog.String("root_id", draft.RootId))
 		return nil, nil
+	}
+
+	var rejectionReason string
+	pluginContext := pluginContext(rctx)
+	a.ch.RunMultiHook(func(hooks plugin.Hooks, _ *model.Manifest) bool {
+		replacement, reason := hooks.DraftWillBeUpserted(pluginContext, draft)
+		if reason != "" {
+			rejectionReason = reason
+			return false
+		}
+		if replacement != nil {
+			draft = replacement
+		}
+		return true
+	}, plugin.DraftWillBeUpsertedID)
+	if rejectionReason != "" {
+		return nil, model.NewAppError("UpsertDraft", "app.draft.upsert.rejected_by_plugin", map[string]any{"Reason": rejectionReason}, "", http.StatusBadRequest)
 	}
 
 	dt, nErr := a.Srv().Store().Draft().Upsert(draft)
@@ -70,12 +99,12 @@ func (a *App) UpsertDraft(c request.CTX, draft *model.Draft, connectionID string
 		return nil, model.NewAppError("CreateDraft", "app.draft.save.app_error", nil, "", http.StatusInternalServerError).Wrap(nErr)
 	}
 
-	dt = a.prepareDraftWithFileInfos(c, draft.UserId, dt)
+	dt = a.prepareDraftWithFileInfos(rctx, draft.UserId, dt)
 
 	message := model.NewWebSocketEvent(model.WebsocketEventDraftCreated, "", dt.ChannelId, dt.UserId, nil, connectionID)
 	draftJSON, jsonErr := json.Marshal(dt)
 	if jsonErr != nil {
-		c.Logger().Warn("Failed to encode draft to JSON", mlog.Err(jsonErr))
+		rctx.Logger().Warn("Failed to encode draft to JSON", mlog.Err(jsonErr))
 	}
 	message.Add("draft", string(draftJSON))
 	a.Publish(message)
@@ -116,7 +145,7 @@ func (a *App) getFileInfosForDraft(rctx request.CTX, draft *model.Draft) ([]*mod
 		return nil, nil
 	}
 
-	allFileInfos, err := a.Srv().Store().FileInfo().GetByIds(draft.FileIds, false, true)
+	allFileInfos, err := a.Srv().Store().FileInfo().GetByIds(draft.FileIds, false, true, false)
 	if err != nil {
 		return nil, model.NewAppError("GetFileInfosForDraft", "app.draft.get_for_draft.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}

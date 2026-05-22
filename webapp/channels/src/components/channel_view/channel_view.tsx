@@ -5,6 +5,8 @@ import React, {lazy} from 'react';
 import {FormattedMessage} from 'react-intl';
 import type {RouteComponentProps} from 'react-router-dom';
 
+import {Button} from '@mattermost/shared/components/button';
+
 import {makeAsyncComponent} from 'components/async_load';
 import deferComponentRender from 'components/deferComponentRender';
 import {DropOverlayIdCenterChannel} from 'components/file_upload_overlay/file_upload_overlay';
@@ -100,10 +102,10 @@ export default class ChannelView extends React.PureComponent<Props, State> {
         if (prevProps.channelId !== this.props.channelId && this.props.enableWebSocketEventScope) {
             WebSocketClient.updateActiveChannel(this.props.channelId);
         }
-        if (prevProps.channelId !== this.props.channelId || prevProps.channelIsArchived !== this.props.channelIsArchived) {
-            if (this.props.channelIsArchived && !this.props.viewArchivedChannels) {
-                this.props.goToLastViewedChannel();
-            }
+
+        // If we're restricting direct messages and the value is not yet set, fetch it
+        if (this.props.canRestrictDirectMessage && this.props.restrictDirectMessage === undefined) {
+            this.props.fetchIsRestrictedDM(this.props.channelId);
         }
     }
 
@@ -122,18 +124,19 @@ export default class ChannelView extends React.PureComponent<Props, State> {
                             id='channelView.archivedChannelWithDeactivatedUser'
                             defaultMessage='You are viewing an archived channel with a <b>deactivated user</b>. New messages cannot be posted.'
                             values={{
-                                b: (chunks: string) => <b>{chunks}</b>,
+                                b: (chunks) => <b>{chunks}</b>,
                             }}
                         />
-                        <button
-                            className='btn btn-primary channel-archived__close-btn'
+                        <Button
+                            emphasis='primary'
+                            className='channel-archived__close-btn'
                             onClick={this.onClickCloseChannel}
                         >
                             <FormattedMessage
                                 id='center_panel.archived.closeChannel'
                                 defaultMessage='Close Channel'
                             />
-                        </button>
+                        </Button>
                     </div>
                 </div>
             );
@@ -151,18 +154,46 @@ export default class ChannelView extends React.PureComponent<Props, State> {
                             id='channelView.archivedChannel'
                             defaultMessage='You are viewing an <b>archived channel</b>. New messages cannot be posted.'
                             values={{
-                                b: (chunks: string) => <b>{chunks}</b>,
+                                b: (chunks) => <b>{chunks}</b>,
                             }}
                         />
-                        <button
-                            className='btn btn-primary channel-archived__close-btn'
+                        <Button
+                            emphasis='primary'
+                            className='channel-archived__close-btn'
                             onClick={this.onClickCloseChannel}
                         >
                             <FormattedMessage
                                 id='center_panel.archived.closeChannel'
                                 defaultMessage='Close Channel'
                             />
-                        </button>
+                        </Button>
+                    </div>
+                </div>
+            );
+        } else if (this.props.restrictDirectMessage) {
+            createPost = (
+                <div
+                    className='post-create__container'
+                    id='post-create'
+                >
+                    <div
+                        id='noSharedTeamMessage'
+                        className='channel-archived__message'
+                    >
+                        <FormattedMessage
+                            id='channelView.noSharedTeam'
+                            defaultMessage='You no longer have any teams in common with this user. New messages cannot be posted.'
+                        />
+                        <Button
+                            emphasis='primary'
+                            className='channel-archived__close-btn'
+                            onClick={this.onClickCloseChannel}
+                        >
+                            <FormattedMessage
+                                id='center_panel.noSharedTeam.closeChannel'
+                                defaultMessage='Close Channel'
+                            />
+                        </Button>
                     </div>
                 </div>
             );
@@ -192,9 +223,9 @@ export default class ChannelView extends React.PureComponent<Props, State> {
                     overlayType='center'
                     id={DropOverlayIdCenterChannel}
                 />
-                <ChannelHeader {...this.props}/>
-                {this.props.isChannelBookmarksEnabled && <ChannelBookmarks channelId={this.props.channelId}/>}
+                <ChannelHeader/>
                 <ChannelBanner channelId={this.props.channelId}/>
+                {this.props.isChannelBookmarksEnabled && <ChannelBookmarks channelId={this.props.channelId}/>}
                 <DeferredPostView
                     channelId={this.props.channelId}
                     focusedPostId={this.state.focusedPostId}

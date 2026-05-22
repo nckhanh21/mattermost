@@ -2,8 +2,11 @@
 // See LICENSE.txt for license information.
 
 import {Bot, BotPatch} from '@mattermost/types/bots';
+
 import {getRandomId} from '../../utils';
-import {ChainableT} from 'tests/types';
+
+import {ChainableT} from '@/types';
+
 
 // *****************************************************************************
 // Bots
@@ -75,7 +78,7 @@ Cypress.Commands.add('apiGetBots', apiGetBots);
  * @example
  *   cy.apiDisableBot('user-id);
  */
-function apiDisableBot(userId) {
+function apiDisableBot(userId: string) {
     return cy.request({
         headers: {'X-Requested-With': 'XMLHttpRequest'},
         url: `/api/v4/bots/${userId}/disable`,

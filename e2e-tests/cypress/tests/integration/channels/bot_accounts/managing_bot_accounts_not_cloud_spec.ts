@@ -11,8 +11,9 @@
 // Group: @channels @bot_accounts @plugin @not_cloud
 
 import {Team} from '@mattermost/types/teams';
-import * as TIMEOUTS from '../../../fixtures/timeouts';
-import {matterpollPlugin} from '../../../utils/plugins';
+
+import * as TIMEOUTS from '@/fixtures/timeouts';
+import {matterpollPlugin} from '@/utils/plugins';
 
 describe('Managing bot accounts', () => {
     let newTeam: Team;
@@ -58,7 +59,7 @@ describe('Managing bot accounts', () => {
                 cy.visit(`/${newTeam.name}/integrations/bots`);
 
                 // # Search for the other bot
-                cy.get('#searchInput', {timeout: TIMEOUTS.ONE_MIN}).type(bot.display_name);
+                cy.get('#searchInput', {timeout: TIMEOUTS.ONE_MIN}).type(bot.display_name!);
 
                 // * Validate that the plugin is still active, even though its owner is disabled
                 cy.get('.bot-list__disabled').should('not.exist');

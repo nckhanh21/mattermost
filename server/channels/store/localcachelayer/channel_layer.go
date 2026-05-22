@@ -222,6 +222,22 @@ func (s LocalCacheChannelStore) GetPinnedPostCount(channelId string, allowFromCa
 	return count, nil
 }
 
+func (s LocalCacheChannelStore) Save(rctx request.CTX, channel *model.Channel, maxChannelsPerTeam int64, channelOptions ...model.ChannelOption) (*model.Channel, error) {
+	newChannel, err := s.ChannelStore.Save(rctx, channel, maxChannelsPerTeam, channelOptions...)
+	if err == nil {
+		s.rootStore.doStandardAddToCache(s.rootStore.channelByIdCache, newChannel.Id, newChannel)
+	}
+	return newChannel, err
+}
+
+func (s LocalCacheChannelStore) Update(rctx request.CTX, channel *model.Channel) (*model.Channel, error) {
+	updatedChannel, err := s.ChannelStore.Update(rctx, channel)
+	if err == nil {
+		s.rootStore.doInvalidateCacheCluster(s.rootStore.channelByIdCache, channel.Id, nil)
+	}
+	return updatedChannel, err
+}
+
 func (s LocalCacheChannelStore) Get(id string, allowFromCache bool) (*model.Channel, error) {
 	if allowFromCache {
 		var cacheItem *model.Channel
@@ -248,7 +264,7 @@ func (s LocalCacheChannelStore) GetMany(ids []string, allowFromCache bool) (mode
 	}
 
 	toPass := allocateCacheTargets[*model.Channel](len(ids))
-	errs := s.rootStore.doMultiReadCache(s.rootStore.roleCache, ids, toPass)
+	errs := s.rootStore.doMultiReadCache(s.rootStore.channelByIdCache, ids, toPass)
 	for i, err := range errs {
 		if err != nil {
 			if err != cache.ErrKeyNotFound {
@@ -281,7 +297,7 @@ func (s LocalCacheChannelStore) GetMany(ids []string, allowFromCache bool) (mode
 	return append(foundChannels, channels...), nil
 }
 
-func (s LocalCacheChannelStore) GetAllChannelMembersForUser(ctx request.CTX, userId string, allowFromCache bool, includeDeleted bool) (map[string]string, error) {
+func (s LocalCacheChannelStore) GetAllChannelMembersForUser(rctx request.CTX, userId string, allowFromCache bool, includeDeleted bool) (map[string]string, error) {
 	cache_key := userId
 	if includeDeleted {
 		cache_key += "_deleted"
@@ -293,7 +309,7 @@ func (s LocalCacheChannelStore) GetAllChannelMembersForUser(ctx request.CTX, use
 		}
 	}
 
-	ids, err := s.ChannelStore.GetAllChannelMembersForUser(ctx, userId, allowFromCache, includeDeleted)
+	ids, err := s.ChannelStore.GetAllChannelMembersForUser(rctx, userId, allowFromCache, includeDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +365,7 @@ func (s LocalCacheChannelStore) getByNames(teamId string, names []string, allowF
 		}
 
 		toPass := allocateCacheTargets[*model.Channel](len(newKeys))
-		errs := s.rootStore.doMultiReadCache(s.rootStore.roleCache, newKeys, toPass)
+		errs := s.rootStore.doMultiReadCache(s.rootStore.channelByNameCache, newKeys, toPass)
 		for i, err := range errs {
 			if err != nil {
 				if err != cache.ErrKeyNotFound {
@@ -466,7 +482,7 @@ func (s LocalCacheChannelStore) GetChannelsMemberCount(channelIDs []string) (_ m
 	remainingChannels := make([]string, 0)
 
 	toPass := allocateCacheTargets[int64](len(channelIDs))
-	errs := s.rootStore.doMultiReadCache(s.rootStore.reaction.rootStore.channelMemberCountsCache, channelIDs, toPass)
+	errs := s.rootStore.doMultiReadCache(s.rootStore.channelMemberCountsCache, channelIDs, toPass)
 	for i, err := range errs {
 		if err != nil {
 			if err != cache.ErrKeyNotFound {

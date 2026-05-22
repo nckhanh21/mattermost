@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -46,6 +47,11 @@ var T TranslateFunc = func(translationID string, args ...any) string {
 	}
 
 	return t(translationID, args...)
+}
+
+// TranslationId is a no-op translation implementation for ensuring the string is retained in translation files
+var TranslationId TranslateFunc = func(translationID string, args ...any) string {
+	return translationID
 }
 
 // TDefault is the translate function using english as fallback language
@@ -313,6 +319,12 @@ func escapeForHTML(arg any) any {
 		return template.HTMLEscapeString(typedArg)
 	case *string:
 		return template.HTMLEscapeString(*typedArg)
+	case int:
+		return typedArg
+	case int64:
+		return typedArg
+	case float64:
+		return typedArg
 	case map[string]any:
 		safeArg := make(map[string]any, len(typedArg))
 		for key, value := range typedArg {
@@ -338,11 +350,5 @@ func IdentityTfunc() TranslateFunc {
 }
 
 func isSupportedLocale(locale string) bool {
-	for _, supportedLocale := range supportedLocales {
-		if locale == supportedLocale {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(supportedLocales, locale)
 }

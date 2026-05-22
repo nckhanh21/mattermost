@@ -5,14 +5,23 @@ import {Locator, expect} from '@playwright/test';
 
 export default class ChannelsSidebarLeft {
     readonly container: Locator;
+
+    readonly teamMenuButton: Locator;
+    readonly browseOrCreateChannelButton: Locator;
     readonly findChannelButton;
     readonly scheduledPostBadge;
+    readonly unreadChannelFilter;
+    readonly openDirectMessageButton;
 
     constructor(container: Locator) {
         this.container = container;
 
+        this.teamMenuButton = container.locator('#sidebarTeamMenuButton');
+        this.browseOrCreateChannelButton = container.locator('#browseOrAddChannelMenuButton');
         this.findChannelButton = container.getByRole('button', {name: 'Find Channels'});
         this.scheduledPostBadge = container.locator('span.scheduledPostBadge');
+        this.unreadChannelFilter = container.locator('.SidebarFilters_filterButton');
+        this.openDirectMessageButton = container.getByRole('button', {name: 'Write a direct message'});
     }
 
     async toBeVisible() {
@@ -45,5 +54,26 @@ export default class ChannelsSidebarLeft {
     async draftsNotVisible() {
         const channel = this.container.getByText('Drafts', {exact: true});
         await expect(channel).not.toBeVisible();
+    }
+
+    /**
+     * Verifies if 'unreads' filter is applied to sidebar.
+     */
+    async isUnreadsFilterActive(): Promise<boolean> {
+        return await this.unreadChannelFilter.evaluate((el) => el.classList.contains('active'));
+    }
+
+    /**
+     * Toggles the unread filter on or off.
+     */
+    async toggleUnreadsFilter() {
+        await this.unreadChannelFilter.click();
+    }
+
+    /**
+     * Gets all unread channel items in the sidebar.
+     */
+    getUnreadChannels(): Locator {
+        return this.container.locator('.SidebarLink.unread-title');
     }
 }

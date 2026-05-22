@@ -48,8 +48,7 @@ jest.mock('actions/storage', () => {
     };
 });
 
-jest.mock('utils/user_agent', () => ({
-    isIosClassic: jest.fn().mockReturnValueOnce(true).mockReturnValue(false),
+jest.mock('@mattermost/shared/utils/user_agent', () => ({
     isDesktopApp: jest.fn().mockReturnValue(false),
 }));
 
@@ -244,7 +243,7 @@ describe('Actions.Posts', () => {
                             channelId: 'other_channel_id',
                             fetchedChannelMember: false,
                             onlyMentions: undefined,
-                            teamId: undefined,
+                            teamId: '',
                         },
                     },
                     {
@@ -263,7 +262,7 @@ describe('Actions.Posts', () => {
                             amountUrgent: 0,
                             channelId: 'other_channel_id',
                             fetchedChannelMember: false,
-                            teamId: undefined,
+                            teamId: '',
                         },
                     },
                 ],
@@ -428,7 +427,9 @@ describe('Actions.Posts', () => {
             {terms: '', type: 'UPDATE_RHS_SEARCH_RESULTS_TERMS'},
             {searchType: '', type: 'UPDATE_RHS_SEARCH_RESULTS_TYPE'},
             {isGettingMore: false, type: 'SEARCH_POSTS_REQUEST'},
+            {data: {firstInaccessiblePostTime: 0, searchType: 'posts'}, type: 'RECEIVED_SEARCH_TRUNCATION_INFO'},
             {isGettingMore: false, type: 'SEARCH_FILES_REQUEST'},
+            {data: {firstInaccessiblePostTime: 0, searchType: 'files'}, type: 'RECEIVED_SEARCH_TRUNCATION_INFO'},
         ]);
     });
 

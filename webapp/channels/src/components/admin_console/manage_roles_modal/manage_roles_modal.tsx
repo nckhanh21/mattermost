@@ -5,14 +5,13 @@ import React from 'react';
 import {Modal} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
 
+import {Button} from '@mattermost/shared/components/button';
 import type {UserProfile} from '@mattermost/types/users';
 
 import {Client4} from 'mattermost-redux/client';
 import {General} from 'mattermost-redux/constants';
 import type {ActionResult} from 'mattermost-redux/types/actions';
 import * as UserUtils from 'mattermost-redux/utils/user_utils';
-
-import {trackEvent} from 'actions/telemetry_actions.jsx';
 
 import ExternalLink from 'components/external_link';
 import BotTag from 'components/widgets/tag/bot_tag';
@@ -104,26 +103,6 @@ export default class ManageRolesModal extends React.PureComponent<Props, State> 
         });
     };
 
-    trackRoleChanges = (roles: string, oldRoles: string) => {
-        if (UserUtils.hasUserAccessTokenRole(roles) && !UserUtils.hasUserAccessTokenRole(oldRoles)) {
-            trackEvent('actions', 'add_roles', {role: General.SYSTEM_USER_ACCESS_TOKEN_ROLE});
-        } else if (!UserUtils.hasUserAccessTokenRole(roles) && UserUtils.hasUserAccessTokenRole(oldRoles)) {
-            trackEvent('actions', 'remove_roles', {role: General.SYSTEM_USER_ACCESS_TOKEN_ROLE});
-        }
-
-        if (UserUtils.hasPostAllRole(roles) && !UserUtils.hasPostAllRole(oldRoles)) {
-            trackEvent('actions', 'add_roles', {role: General.SYSTEM_POST_ALL_ROLE});
-        } else if (!UserUtils.hasPostAllRole(roles) && UserUtils.hasPostAllRole(oldRoles)) {
-            trackEvent('actions', 'remove_roles', {role: General.SYSTEM_POST_ALL_ROLE});
-        }
-
-        if (UserUtils.hasPostAllPublicRole(roles) && !UserUtils.hasPostAllPublicRole(oldRoles)) {
-            trackEvent('actions', 'add_roles', {role: General.SYSTEM_POST_ALL_PUBLIC_ROLE});
-        } else if (!UserUtils.hasPostAllPublicRole(roles) && UserUtils.hasPostAllPublicRole(oldRoles)) {
-            trackEvent('actions', 'remove_roles', {role: General.SYSTEM_POST_ALL_PUBLIC_ROLE});
-        }
-    };
-
     onHide = () => {
         this.setState({show: false});
     };
@@ -145,7 +124,6 @@ export default class ManageRolesModal extends React.PureComponent<Props, State> 
         }
 
         const result = await this.props.actions.updateUserRoles(this.props.user!.id, roles);
-        this.trackRoleChanges(roles, this.props.user!.roles);
 
         if (isSuccess(result)) {
             this.props.onSuccess(roles);
@@ -385,26 +363,26 @@ export default class ManageRolesModal extends React.PureComponent<Props, State> 
                     {this.state.error}
                 </Modal.Body>
                 <Modal.Footer>
-                    <button
+                    <Button
                         type='button'
-                        className='btn btn-tertiary'
+                        emphasis='tertiary'
                         onClick={this.onHide}
                     >
                         <FormattedMessage
                             id='admin.manage_roles.cancel'
                             defaultMessage='Cancel'
                         />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type='button'
-                        className='btn btn-primary'
+                        emphasis='primary'
                         onClick={this.handleSave}
                     >
                         <FormattedMessage
                             id='admin.manage_roles.save'
                             defaultMessage='Save'
                         />
-                    </button>
+                    </Button>
                 </Modal.Footer>
             </Modal>
         );
